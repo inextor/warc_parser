@@ -1,9 +1,8 @@
 //extern crate warc;
-use std::{str,process, borrow::Borrow, clone};
+//use std::process;
 use warc::WarcReader;
 use lazy_static::lazy_static;
 use regex::Regex;
-use std::ffi::OsString;
 //use html_parser::Dom;
 
 fn main(){
@@ -20,7 +19,6 @@ fn main(){
     }
 
     let mut counter:i64 = 0;
-    let mut length:usize = 0;
 
     for record in file.iter_records() {
         match record {
@@ -28,12 +26,7 @@ fn main(){
             Ok(record) => {
 
                 counter += 1;
-                match record.header( warc::WarcHeader::ContentLength).map(|s| s.to_string()){
-                    Some(v)=>{
-                        length=v.parse::<usize>().unwrap();
-                    },
-                    None=>{ length = 0}
-                };
+                
 
                 let warkid = match record.header(warc::WarcHeader::TargetURI).map(|s| s.to_string()) {
                     Some(v)=>v,
@@ -52,12 +45,12 @@ fn main(){
                     println!("{}\t{}",&caps["login"],warkid);
                 }
 
-                if counter > 71862 
-                {
-                    println!("{} ",warkid);
-                    println!("the shits ends {} ", s);
-                    process::exit(1);
-                }
+                //if counter > 71862 
+                //{
+                //    println!("{} ",warkid);
+                //    println!("the shits ends {} ", s);
+                //    process::exit(1);
+                //}
 
            }
         }
