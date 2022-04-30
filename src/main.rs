@@ -22,17 +22,17 @@ fn main(){
     let file = WarcReader::from_path_gzip( filepath ).expect("Not a warc valid format");
     lazy_static! {
         //let email_regex = Regex::new(r"^([a-z0-9_+]([a-z0-9_+.]*[a-z0-9_+])?)@([a-z0-9]+([\-\.]{1}[a-z0-9]+)*\.[a-z]{2,6})").unwrap();
-        //static ref RE: Regex = Regex::new(r"(?x)
-        //    (?P<login>[^@\s\#/\{\}<>,\u0022!:;\[\]'\(\)]+@
-        //    #([[:word:]]+\.)+ Este es un comentario
-        //    ([^@\s\#/\{\}<>,\u0022!:;\[\]'\(\)%]+\.)+
-        //    [[:word:]]{2,28})
-        //    ").unwrap();
-        //
-        //
-        static ref RE: Regex = Regex::new(r"(?xm)
-            (?P<svg><svg>.+</svg>)
+        static ref RE: Regex = Regex::new(r"(?x)
+            (?P<login>[^@\s\#/\{\}<>,\u0022!:;\[\]'\(\)]+@
+            #([[:word:]]+\.)+ Este es un comentario
+            ([^@\s\#/\{\}<>,\u0022!:;\[\]'\(\)%]+\.)+
+            [[:word:]]{2,28})
             ").unwrap();
+        //
+        //
+        //static ref RE: Regex = Regex::new(r"(?xm)
+        //    (?P<svg><svg>.+</svg>)
+        //    ").unwrap();
 
     }
 
@@ -50,7 +50,7 @@ fn main(){
 
                 for caps in RE.captures_iter(&s.to_string()){
 
-                    println!("{}\t{}",&caps["svg"],warkid);
+                    println!("{}\t{}",&caps["login"],warkid);
                 }
            }
         }
