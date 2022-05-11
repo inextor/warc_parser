@@ -32,7 +32,7 @@ fn main(){
         //
         //
         static ref RE: Regex = Regex::new(r"(?xm)
-            (?P<svg><svg>.+</svg>)
+            (?P<a><svg>.+</svg>)
             ").unwrap();
 
     }
@@ -51,7 +51,7 @@ fn main(){
                 let s:String = get_string(record.body());
 
                 for caps in RE.captures_iter(&s.to_string()){
-                    if caps["svg"].contains("path")
+                    if caps["a"].contains("path")
                     {
                         let clean = caps["svg"].replace('\n'," ");
                         println!("{}", clean );
