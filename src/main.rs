@@ -5,6 +5,10 @@ use std::io::BufReader;
 use warc::WarcReader;
 use lazy_static::lazy_static;
 use regex::Regex;
+//use std::string::ToString;
+use std::thread;
+use std::time::Duration;
+use threadpool::ThreadPool;
 //use html_parser::Dom;
 //use reqwest::blocking;
 
@@ -12,21 +16,79 @@ use libflate::gzip::MultiDecoder as GzipReader;
 
 fn main(){
 
-    let args: Vec<String> = env::args().collect();
+    //let args: Vec<String> = env::args().collect();
 
-    if args.len() < 2
-    {
-        eprintln!("Usage warc_parser warc_file.warc.gz");
-        process::exit(1);
-    }
+    //if args.len() < 2
+    //{
+    //    eprintln!("Usage warc_parser warc_file.warc.gz");
+    //    process::exit(1);
+    //}
+    
 
-    let url = args.get(1).expect("Usage warc_parser warc_file.warc.gz");
-    download_file( url );
+     //let v = download_file("http://127.0.0.1/warcs/filename1.warc.gz");
+     //println!("Emails found {}",v.len());
 
+    spawn_threads();
+    
+
+    //let url = args.get(1).expect("Usage warc_parser warc_file.warc.gz");
+    //download_file( url );
 }
 
+fn spawn_threads()
+{
+    let cpus = num_cpus::get();
 
-fn download_file(url:&str)
+    eprintln!("Number of cpus {}",cpus);
+
+
+    let mut counter = 1;
+
+    let x = available_cpu()-1;
+    let pool = ThreadPool::new( x.try_into().unwrap() ); 
+
+    loop{
+
+        let x = available_cpu()-1;
+        eprintln!("Cpus available {}",x );
+
+        if x > 0 
+        {
+            counter+=1;
+            let s = format!("http://127.0.0.1/warcs/filename{}.warc.gz",counter);
+            pool.execute( move ||{
+                println!("Running inside thread {}", s);
+                let v = download_file(&s);
+                println!("Number of emails {}",v.len());
+            });
+
+            thread::sleep(Duration::from_millis(1000))
+        
+        }
+
+        if counter == 39 
+        {
+            break;
+        }
+    }
+
+    pool.join();
+}
+
+fn available_cpu()->u64
+{
+    match thread::available_parallelism() 
+    {
+        Ok(f)=>{
+            f.get().try_into().unwrap()
+        },
+        Err(_)=>{
+            0
+        }
+    }
+}
+
+fn download_file(url:&str)->Vec<String>
 {
     eprintln!("Downloading");
 
@@ -40,6 +102,7 @@ fn download_file(url:&str)
             ").unwrap();
     }
 
+    let mut v:Vec<String> = Vec::new();
 
     match reqwest::blocking::get(url)
     {
@@ -71,7 +134,8 @@ fn download_file(url:&str)
                                 let s:String = get_string(record.body());
 
                                 for caps in RE.captures_iter(&s.to_string()){
-                                    println!("{}\t{}",&caps["a"],url);
+                                    let s = format!("{}\t{}",&caps["a"],url);
+                                    v.push(s);
                                 }
                            }
                         }
@@ -87,6 +151,7 @@ fn download_file(url:&str)
         }
     }
     eprintln!("Finished");
+    v
 }
 
 fn get_string(body:&[u8])->String
