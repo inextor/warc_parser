@@ -59,3 +59,16 @@ pub fn u8_tostring(body:&[u8])->String
 
     return String::from_utf8_lossy( body ).to_string();
 }
+
+//pub fn available_cpu()->u64
+//{
+//    match thread::available_parallelism() 
+//    {
+//        Ok(f)=>{
+//            f.get().try_into().unwrap()
+//        },
+//        Err(_)=>{
+//            0
+//        }
+//    }
+//}

@@ -5,37 +5,35 @@ use std::io::BufReader;
 use warc::WarcReader;
 use lazy_static::lazy_static;
 use regex::Regex;
-//use std::string::ToString;
 use std::thread;
 use std::time::Duration;
 use threadpool::ThreadPool;
+
 //use html_parser::Dom;
 //use reqwest::blocking;
+//use std::string::ToString;
 
-use libflate::gzip::MultiDecoder as GzipReader;
+mod utils;
 
 fn main(){
 
-    //let args: Vec<String> = env::args().collect();
+    let args: Vec<String> = env::args().collect();
 
-    //if args.len() < 2
-    //{
-    //    eprintln!("Usage warc_parser warc_file.warc.gz");
-    //    process::exit(1);
-    //}
-    
+    if args.len() < 2
+    {
+        eprintln!("Usage warc_parser 3");
+        process::exit(1);
+    }
+    let thread_str = args.get(1).expect("Usage warc_parser warc_file.warc.gz");
 
-     //let v = download_file("http://127.0.0.1/warcs/filename1.warc.gz");
-     //println!("Emails found {}",v.len());
-
-    spawn_threads();
-    
-
-    //let url = args.get(1).expect("Usage warc_parser warc_file.warc.gz");
-    //download_file( url );
+    let max_threads = thread_str.parse::<u64>().unwrap();
+    spawn_threads( max_threads );
 }
 
-fn spawn_threads()
+//Use active_count instead  of spawning a every loop
+//https://docs.rs/threadpool/latest/threadpool/struct.ThreadPool.html#method.active_count
+
+fn spawn_threads(max_threads:u64)
 {
     let cpus = num_cpus::get();
 
@@ -44,29 +42,30 @@ fn spawn_threads()
 
     let mut counter = 1;
 
-    let x = available_cpu()-1;
-    let pool = ThreadPool::new( x.try_into().unwrap() ); 
+    let pool = ThreadPool::new( max_threads.try_into().unwrap() ); 
 
     loop{
 
-        let x = available_cpu()-1;
-        eprintln!("Cpus available {}",x );
+        let active = pool.active_count();
+        let u64_active:u64  = active.try_into().unwrap();
+        let available = u64_active-max_threads; 
+        eprintln!("threads available {}",available);
 
-        if x > 0 
+        if available > 0 
         {
             counter+=1;
             let s = format!("http://127.0.0.1/warcs/filename{}.warc.gz",counter);
             pool.execute( move ||{
-                println!("Running inside thread {}", s);
-                let v = download_file(&s);
-                println!("Number of emails {}",v.len());
+                eprintln!("Running inside thread {}", s);
+                let v = parse_url_warc_gzip(&s);
+                eprintln!("Number of emails {}",v.len());
             });
 
-            thread::sleep(Duration::from_millis(1000))
-        
         }
 
-        if counter == 39 
+        thread::sleep(Duration::from_millis(100));
+
+        if counter >= 39 
         {
             break;
         }
@@ -75,23 +74,10 @@ fn spawn_threads()
     pool.join();
 }
 
-fn available_cpu()->u64
-{
-    match thread::available_parallelism() 
-    {
-        Ok(f)=>{
-            f.get().try_into().unwrap()
-        },
-        Err(_)=>{
-            0
-        }
-    }
-}
 
-fn download_file(url:&str)->Vec<String>
-{
-    eprintln!("Downloading");
 
+fn parse_url_warc_gzip(url:&str)->Vec<String>
+{
     lazy_static! {
         //let email_regex = Regex::new(r"^([a-z0-9_+]([a-z0-9_+.]*[a-z0-9_+])?)@([a-z0-9]+([\-\.]{1}[a-z0-9]+)*\.[a-z]{2,6})").unwrap();
         static ref RE: Regex = Regex::new(r"(?x)
@@ -104,68 +90,43 @@ fn download_file(url:&str)->Vec<String>
 
     let mut v:Vec<String> = Vec::new();
 
-    match reqwest::blocking::get(url)
+    match utils::download_gzip_file( url ) 
     {
+        Err(_)=>{v}
         Ok(response)=>{
-            match GzipReader::new(BufReader::with_capacity(4*1_048_576, response ))
-            {
-                Ok(gzip_stream)=>{
-                    let x = WarcReader::new(BufReader::new(gzip_stream));
-                    for record in x.iter_records() {
-                        match record {
-                            Err(err_records) =>{
-                                eprintln!("Error on reading records {}",err_records);
-                            },
-                            Ok(record) => {
-                                let warc_type = match record.header(warc::WarcHeader::WarcType).map(|s| s.to_string()) {
-                                    Some(v)=>v,
-                                    None=> "".to_string()
-                                };
+            let x = WarcReader::new(BufReader::new(response));
+            for record in x.iter_records() {
+                match record {
+                    Err(err_records) =>{
+                        eprintln!("Error on reading records {}",err_records);
+                    },
+                    Ok(record) => {
+                        let warc_type = match record.header(warc::WarcHeader::WarcType).map(|s| s.to_string()) {
+                            Some(v)=>v,
+                            None=> "".to_string()
+                        };
 
-                                if warc_type.ne("response")
-                                {
-                                    continue;
-                                }
-
-                                let url = match record.header(warc::WarcHeader::TargetURI).map(|s| s.to_string()) {
-                                    Some(v)=>v,
-                                    None=> "".to_string()
-                                };
-                                let s:String = get_string(record.body());
-
-                                for caps in RE.captures_iter(&s.to_string()){
-                                    let s = format!("{}\t{}",&caps["a"],url);
-                                    v.push(s);
-                                }
-                           }
+                        if warc_type.ne("response")
+                        {
+                            continue;
                         }
-                    }
-                },
-                Err(error2)=>{
-                    eprintln!("Error stream gzip {}",error2);
+
+                        let url = match record.header(warc::WarcHeader::TargetURI).map(|s| s.to_string()) {
+                            Some(v)=>v,
+                            None=> "".to_string()
+                        };
+                        let s:String = utils::u8_tostring(record.body());
+
+                        for caps in RE.captures_iter(&s.to_string()){
+                            let s_line = format!("{}\t{}",&caps["a"],url);
+                            //println!("{}",s_line );
+                            v.push(s_line);
+                        }
+                   }
                 }
             }
-        },
-        Err(err)=>{
-            eprintln!("error {} ",err);
+            v
         }
     }
-    eprintln!("Finished");
-    v
 }
 
-fn get_string(body:&[u8])->String
-{
-    let s = match String::from_utf8(body.to_vec())
-    {
-        Ok(ss)=>ss,
-        Err(_)=> String::from("")
-    };
-
-    if !s.is_empty()
-    {
-        return s;
-    };
-
-    return String::from_utf8_lossy( body ).to_string();
-}
