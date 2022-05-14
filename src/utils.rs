@@ -3,20 +3,20 @@ use std::io::BufReader;
 use std::io::BufRead;
 //use reqwest::blocking::Response;
 
-fn parse_reverse_url(url_string:String)->Option<String>
+pub fn parse_reverse_url(url_string:&str)->String
 {
     let parts = url_string.split(')');
     let vec:Vec<&str> = parts.collect();
     let firsts = match vec.first() 
     {
         Some(some_str)=>some_str,
-        None=> return None
+        None=> ""
     };
 
     let parts = firsts.split(',');
     let mut vec:Vec<&str> = parts.collect();
     vec.reverse();
-    Some(vec.join("."))
+    vec.join(".")
 }
 
 
