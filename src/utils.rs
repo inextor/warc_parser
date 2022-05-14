@@ -1,5 +1,6 @@
 use libflate::gzip::MultiDecoder as GzipReader;
 use std::io::BufReader;
+use std::io::BufRead;
 use reqwest::blocking::Response;
 
 fn parse_url(url_string:String)->String
@@ -18,13 +19,51 @@ fn parse_url(url_string:String)->String
     vec.join(".")
 }
 
+pub fn download_gzip_file2222(url:&str)->Result<&str,&str>//Result<GzipReader<BufReader<Response>>,&str>
+{
+    match reqwest::blocking::get(url)
+    {
+        Ok(response)=>
+        {
+            let mut buff_reader =  BufReader::with_capacity(4*1_048_576, response );
+            match GzipReader::new( buff_reader )
+            {
+                Ok(gzip_stream)=>{
+                    let mut buff_reader2 = BufReader::with_capacity(4*1_048_576,gzip_stream);
+                    let mut str_buff = String::new();
+                    while let Ok(line) = buff_reader2.read_line(&mut str_buff)
+                    {
+                        // Show the line and its number.
+                        println!("Found bytes??? {} {}",line, str_buff);
+                    }
+
+                    //Ok(gzip_stream.into_inner());
+                    Ok("OK")
+                }
+                ,Err(gzip_err)=>
+                {
+                    eprintln!("Error {}",gzip_err);
+                    Err("")
+                }
+            }
+        },
+        Err(net_err)=>
+        { 
+            eprintln!("Error {}",net_err);
+            Err("")
+        }
+    }
+}
+
+
 pub fn download_gzip_file(url:&str)->Result<GzipReader<BufReader<Response>>,&str>
 {
     match reqwest::blocking::get(url)
     {
         Ok(response)=>
         {
-            match GzipReader::new(BufReader::with_capacity(4*1_048_576, response ))
+            let buff_reader =  BufReader::with_capacity(4*1_048_576, response );
+            match GzipReader::new( buff_reader )
             {
                 Ok(gzip_stream)=>{
                     Ok(gzip_stream)
