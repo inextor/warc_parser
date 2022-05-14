@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+use std::io::BufRead;
 //extern crate warc;
 use std::process;
 use std::env;
@@ -8,10 +10,6 @@ use regex::Regex;
 use std::thread;
 use std::time::Duration;
 use threadpool::ThreadPool;
-
-//use html_parser::Dom;
-//use reqwest::blocking;
-//use std::string::ToString;
 
 mod utils;
 
@@ -25,9 +23,14 @@ fn main(){
         process::exit(1);
     }
     let thread_str = args.get(1).expect("Usage warc_parser warc_file.warc.gz");
+    eprintln!("Running with {} ",thread_str);
 
-    let max_threads = thread_str.parse::<u64>().unwrap();
-    spawn_threads( max_threads );
+    parse_path_files("http://127.0.0.1/cdx-00000.gz");
+    //let max_threads = thread_str.parse::<u64>().unwrap();
+    //spawn_threads( max_threads );
+    //let r = utils::download_gzip_file2222("http://127.0.0.1/cdx-00000.gz");
+    //eprintln!("FOOO {}", r.unwrap());
+    //xxxxx();
 }
 
 //Use active_count instead  of spawning a every loop
@@ -49,7 +52,11 @@ fn spawn_threads(max_threads:u64)
         let active = pool.active_count();
         let u64_active:u64  = active.try_into().unwrap();
         let available = u64_active-max_threads; 
-        eprintln!("threads available {}",available);
+
+        if available != 0 
+        {
+            eprintln!("threads available {}",available);
+        }
 
         if available > 0 
         {
@@ -63,7 +70,7 @@ fn spawn_threads(max_threads:u64)
 
         }
 
-        thread::sleep(Duration::from_millis(100));
+        thread::sleep(Duration::from_millis(400));
 
         if counter >= 39 
         {
@@ -72,9 +79,44 @@ fn spawn_threads(max_threads:u64)
     }
 
     pool.join();
+    //xx();
 }
 
+// parse_path_files("http://127.0.0.1/cdx-00000.gz");
 
+fn parse_path_files(url:&str)
+{
+    let mut counter = 0;
+    let mut hashmap:HashMap<String,u64> = HashMap::with_capacity(200_000); 
+    match utils::download_gzip_file( &url ) 
+    {
+        Some(mut x)=>{
+            let mut buffer_str = String::new();
+            while let Ok(size) = x.read_line(&mut buffer_str) 
+            { 
+                let domain = utils::parse_reverse_url( &buffer_str );
+                 
+                if !hashmap.contains_key(&domain)
+                {
+                    counter += 1;
+                    hashmap.insert(domain,counter);        
+                }
+
+                buffer_str.clear();
+
+                if size == 0 
+                {
+                    break;
+                }
+            }
+        },
+        None=>{eprintln!("An error occour");}
+    }
+    for (domain,id) in hashmap.iter()
+    {
+        println!("{} {}",id,domain);
+    }
+}
 
 fn parse_url_warc_gzip(url:&str)->Vec<String>
 {
@@ -92,8 +134,7 @@ fn parse_url_warc_gzip(url:&str)->Vec<String>
 
     match utils::download_gzip_file( url ) 
     {
-        Err(_)=>{v}
-        Ok(response)=>{
+        Some(response)=>{
             let x = WarcReader::new(BufReader::new(response));
             for record in x.iter_records() {
                 match record {
@@ -126,7 +167,8 @@ fn parse_url_warc_gzip(url:&str)->Vec<String>
                 }
             }
             v
-        }
+        },
+        None=>{v}
     }
 }
 
