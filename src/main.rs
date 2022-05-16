@@ -51,11 +51,11 @@ fn spawn_threads(max_threads:u64)
 
         let active = pool.active_count();
         let u64_active:u64  = active.try_into().unwrap();
-        let available = u64_active-max_threads; 
+        let available = max_threads-u64_active; 
 
-        if available != 0 
+        if available > 0 
         {
-            eprintln!("threads available {}",available);
+            eprintln!("threads active {} max_available Threads {}, available {}",active, max_threads, available);
         }
 
         if available > 0 
