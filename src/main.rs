@@ -25,9 +25,9 @@ fn main(){
     let thread_str = args.get(1).expect("Usage warc_parser warc_file.warc.gz");
     eprintln!("Running with {} ",thread_str);
 
-    parse_path_files("http://127.0.0.1/cdx-00000.gz");
-    //let max_threads = thread_str.parse::<u64>().unwrap();
-    //spawn_threads( max_threads );
+    //parse_path_files("http://127.0.0.1/cdx-00000.gz");
+    let max_threads = thread_str.parse::<u64>().unwrap();
+    spawn_threads( max_threads );
     //let r = utils::download_gzip_file2222("http://127.0.0.1/cdx-00000.gz");
     //eprintln!("FOOO {}", r.unwrap());
     //xxxxx();
@@ -88,7 +88,7 @@ fn parse_path_files(url:&str)
 {
     let mut counter = 0;
     let mut hashmap:HashMap<String,u64> = HashMap::with_capacity(200_000); 
-    match utils::download_gzip_file( &url ) 
+    match utils::download_gzip_file( url ) 
     {
         Some(mut x)=>{
             let mut buffer_str = String::new();
@@ -96,11 +96,16 @@ fn parse_path_files(url:&str)
             { 
                 let domain = utils::parse_reverse_url( &buffer_str );
                  
-                if !hashmap.contains_key(&domain)
-                {
-                    counter += 1;
-                    hashmap.insert(domain,counter);        
-                }
+                hashmap.entry(domain).or_insert_with(|| {                      
+                    counter += 1;                      
+                    counter                          
+                });
+
+                //if !hashmap.contains_key(&domain)
+                //{
+                //    counter += 1;
+                //    hashmap.insert(domain,counter);        
+                //}
 
                 buffer_str.clear();
 
